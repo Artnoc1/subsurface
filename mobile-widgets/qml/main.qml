@@ -55,7 +55,7 @@ Kirigami.ApplicationWindow {
 	}
 
 	function showBusy(msg) {
-		if (msg !== undefined)
+		if (msg !== undefined && msg !== "")
 			showPassiveNotification(msg, 15000) // show for 15 seconds
 		busy.running = true
 	}
@@ -73,7 +73,7 @@ Kirigami.ApplicationWindow {
 	}
 
 	function scrollToTop() {
-		diveList.scrollToTop()
+		newDiveList.scrollToTop()
 	}
 
 	function showMap() {
@@ -89,9 +89,9 @@ Kirigami.ApplicationWindow {
 	function showDiveList() {
 		if (globalDrawer.drawerOpen)
 			globalDrawer.close()
-		var i=pageIndex(diveList)
+		var i=pageIndex(newDiveList)
 		if (i === -1)
-			pageStack.push(diveList)
+			pageStack.push(newDiveList)
 		else
 			pageStack.currentIndex = i
 	}
@@ -281,7 +281,7 @@ Kirigami.ApplicationWindow {
 							pageStack.pop()
 						}
 						diveList.diveListModel = diveModel
-						pageStack.push(diveList)
+						showDiveList()
 						hideBusy()
 					}
 				}
@@ -721,9 +721,15 @@ if you have network connectivity and want to sync your data to cloud storage."),
 		}
 	}
 
-	DiveList {
+	NewDiveList {
 		id: diveList
-		visible: false
+		opacity: 0
+		Behavior on opacity {
+			NumberAnimation {
+				duration: 200
+				easing.type: Easing.OutQuad
+			}
+		}
 	}
 
 	Settings {
