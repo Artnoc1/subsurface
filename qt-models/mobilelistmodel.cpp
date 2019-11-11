@@ -1,0 +1,363 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "mobilelistmodel.h"
+
+MobileListModel::MobileListModel()
+	: expandedRow(-1)
+{
+	connectSignals();
+}
+
+MobileListModel *MobileListModel::instance()
+{
+	static MobileListModel self;
+	return &self;
+}
+
+void MobileListModel::connectSignals()
+{
+	DiveTripModelBase *source = DiveTripModelBase::instance();
+	connect(source, &DiveTripModelBase::modelAboutToBeReset, this, &MobileListModel::beginResetModel);
+	connect(source, &DiveTripModelBase::modelReset, this, &MobileListModel::endResetModel);
+	connect(source, &DiveTripModelBase::rowsAboutToBeRemoved, this, &MobileListModel::prepareRemove);
+	connect(source, &DiveTripModelBase::rowsRemoved, this, &MobileListModel::doneRemove);
+	connect(source, &DiveTripModelBase::rowsAboutToBeInserted, this, &MobileListModel::prepareInsert);
+	connect(source, &DiveTripModelBase::rowsInserted, this, &MobileListModel::doneInsert);
+	connect(source, &DiveTripModelBase::rowsAboutToBeMoved, this, &MobileListModel::prepareMove);
+	connect(source, &DiveTripModelBase::rowsMoved, this, &MobileListModel::doneMove);
+	connect(source, &DiveTripModelBase::dataChanged, this, &MobileListModel::changed);
+}
+
+QHash<int, QByteArray> MobileListModel::roleNames() const
+{
+	QHash<int, QByteArray> roles;
+	roles[DiveTripModelBase::IS_TRIP_ROLE] = "isTrip";
+	roles[DiveTripModelBase::CURRENT_ROLE] = "current";
+	roles[IsTopLevelRole] = "isTopLevel";
+	roles[DiveDateRole] = "date";
+	roles[TripIdRole] = "tripId";
+	roles[TripNrDivesRole] = "tripNrDives";
+	roles[DateTimeRole] = "dateTime";
+	roles[IdRole] = "id";
+	roles[NumberRole] = "number";
+	roles[LocationRole] = "location";
+	roles[DepthRole] = "depth";
+	roles[DurationRole] = "duration";
+	roles[DepthDurationRole] = "depthDuration";
+	roles[RatingRole] = "rating";
+	roles[VizRole] = "viz";
+	roles[SuitRole] = "suit";
+	roles[AirTempRole] = "airTemp";
+	roles[WaterTempRole] = "waterTemp";
+	roles[SacRole] = "sac";
+	roles[SumWeightRole] = "sumWeight";
+	roles[DiveMasterRole] = "diveMaster";
+	roles[BuddyRole] = "buddy";
+	roles[NotesRole]= "notes";
+	roles[GpsRole] = "gps";
+	roles[GpsDecimalRole] = "gpsDecimal";
+	roles[NoDiveRole] = "noDive";
+	roles[DiveSiteRole] = "diveSite";
+	roles[CylinderRole] = "cylinder";
+	roles[GetCylinderRole] = "getCylinder";
+	roles[CylinderListRole] = "cylinderList";
+	roles[SingleWeightRole] = "singleWeight";
+	roles[StartPressureRole] = "startPressure";
+	roles[EndPressureRole] = "endPressure";
+	roles[FirstGasRole] = "firstGas";
+	roles[SelectedRole] = "selected";
+	return roles;
+}
+
+// We want to show the newest dives first. Therefore, we have to invert
+// the indexes with respect to the source model. To avoid mental gymnastics
+// in the rest of the code, we do this right before sending to the
+// source model and just after recieving from the source model, respectively.
+QModelIndex MobileListModel::sourceIndex(int row, int col, int parentRow) const
+{
+	if (row < 0 || col < 0)
+		return QModelIndex();
+	DiveTripModelBase *source = DiveTripModelBase::instance();
+	QModelIndex parent;
+	if (parentRow >= 0) {
+		int numTop = source->rowCount(QModelIndex());
+		parent = source->index(numTop - 1 - parentRow, 0);
+	}
+	int numItems = source->rowCount(parent);
+	return source->index(numItems - 1 - row, col, parent);
+}
+
+int MobileListModel::numSubItems() const
+{
+	if (expandedRow < 0)
+		return 0;
+	DiveTripModelBase *source = DiveTripModelBase::instance();
+	return source->rowCount(sourceIndex(expandedRow, 0));
+}
+
+bool MobileListModel::isExpandedRow(const QModelIndex &parent) const
+{
+	// The main list (parent is invalid) is always expanded.
+	return !parent.isValid() || parent.row() == expandedRow;
+}
+
+int MobileListModel::mapRowFromSource(const QModelIndex &parent, int row) const
+{
+	if (row < 0)
+		return -1;
+
+	// We get rows from the source model in the wrong direction.
+	// First, invert them.
+	DiveTripModelBase *source = DiveTripModelBase::instance();
+	int numItems = source->rowCount(parent);
+	row = numItems - 1 - row;
+
+	if (!parent.isValid()) {
+		// This is a top-level item. If it is after the expanded row,
+		// we have to add the items of the expanded row.
+		return expandedRow >= 0 && row > expandedRow ? row + numSubItems() : row;
+	} else {
+		// This is a subitem. The function must only be called on
+		// expanded subitems. Remember that we have to invert the direction!
+		int parentRow = parent.row();
+		int numItems = source->rowCount(QModelIndex());
+		parentRow = numItems - 1 - parentRow;
+		if (parentRow != expandedRow) {
+			qWarning("MobileListModel::mapRowFromSource() called on non-extended row");
+			return -1;
+		}
+		return expandedRow + 1 + row; // expandedRow + 1 is the row of the first subitem
+	}
+}
+
+QModelIndex MobileListModel::mapFromSource(const QModelIndex &idx) const
+{
+	return createIndex(mapRowFromSource(idx.parent(), idx.row()), idx.column());
+}
+
+QModelIndex MobileListModel::mapToSource(const QModelIndex &idx) const
+{
+	if (!idx.isValid())
+		return idx;
+	int row = idx.row();
+	int col = idx.column();
+	if (expandedRow < 0 || row <= expandedRow)
+		return sourceIndex(row, col);
+
+	int numSub = numSubItems();
+	if (row > expandedRow + numSub)
+		return sourceIndex(row - numSub, col);
+
+	return sourceIndex(row - expandedRow - 1, col, expandedRow);
+}
+
+QModelIndex MobileListModel::index(int row, int column, const QModelIndex &parent) const
+{
+	if (!hasIndex(row, column, parent))
+		return QModelIndex();
+
+	return createIndex(row, column);
+}
+
+QModelIndex MobileListModel::parent(const QModelIndex &index) const
+{
+	// This is a flat model - there is no parent
+	return QModelIndex();
+}
+
+int MobileListModel::rowCount(const QModelIndex &parent) const
+{
+	if (parent.isValid())
+		return 0; // There is no parent
+	DiveTripModelBase *source = DiveTripModelBase::instance();
+	return source->rowCount() + numSubItems();
+}
+
+int MobileListModel::columnCount(const QModelIndex &parent) const
+{
+	DiveTripModelBase *source = DiveTripModelBase::instance();
+	return source->columnCount(parent);
+}
+
+QVariant MobileListModel::data(const QModelIndex &index, int role) const
+{
+	if (role == IsTopLevelRole)
+		return index.row() <= expandedRow || index.row() > expandedRow + numSubItems();
+
+	DiveTripModelBase *source = DiveTripModelBase::instance();
+	return source->data(mapToSource(index), role);
+}
+
+void MobileListModel::resetModel(DiveTripModelBase::Layout layout)
+{
+	beginResetModel();
+	DiveTripModelBase::instance()->reset();
+	connectSignals();
+	endResetModel();
+}
+
+void MobileListModel::prepareRemove(const QModelIndex &parent, int first, int last)
+{
+	if (isExpandedRow(parent))
+		beginRemoveRows(QModelIndex(), mapRowFromSource(parent, first), mapRowFromSource(parent, last));
+}
+
+void MobileListModel::doneRemove(const QModelIndex &parent, int first, int last)
+{
+	if (isExpandedRow(parent)) {
+		// Check if we have to move or remove the expanded item
+		if (!parent.isValid() && expandedRow >= 0) {
+			if (first <= expandedRow && last >= expandedRow)
+				expandedRow = -1;
+			else if (first <= expandedRow)
+				expandedRow -= last - first + 1;
+		}
+		endRemoveRows();
+	}
+}
+
+void MobileListModel::prepareInsert(const QModelIndex &parent, int first, int last)
+{
+	if (isExpandedRow(parent)) {
+		int localRow = mapRowFromSource(parent, first);
+		beginInsertRows(QModelIndex(), localRow, localRow + last - first);
+	}
+}
+
+void MobileListModel::doneInsert(const QModelIndex &parent, int first, int last)
+{
+	if (isExpandedRow(parent)) {
+		// Check if we have to move the expanded item
+		if (!parent.isValid() && expandedRow >= 0 && first <= expandedRow)
+			expandedRow += last - first + 1;
+		endInsertRows();
+	}
+}
+
+// Moving rows is annoying, as there are numerous cases to be considered.
+// Some of them degrade to removing or inserting rows.
+void MobileListModel::prepareMove(const QModelIndex &parent, int first, int last, const QModelIndex &dest, int destRow)
+{
+	if (!isExpandedRow(parent) && !isExpandedRow(dest))
+		return;
+	if (isExpandedRow(parent) && !isExpandedRow(dest))
+		return prepareRemove(parent, first, last);
+	if (!isExpandedRow(parent) && isExpandedRow(dest))
+		return prepareInsert(parent, first, last);
+	beginMoveRows(QModelIndex(), mapRowFromSource(parent, first), mapRowFromSource(parent, last),
+		      QModelIndex(), mapRowFromSource(dest, destRow));
+}
+
+void MobileListModel::doneMove(const QModelIndex &parent, int first, int last, const QModelIndex &dest, int destRow)
+{
+	if (!isExpandedRow(parent) && !isExpandedRow(dest))
+		return;
+	if (isExpandedRow(parent) && !isExpandedRow(dest))
+		return doneRemove(parent, first, last);
+	if (!isExpandedRow(parent) && isExpandedRow(dest))
+		return doneInsert(parent, first, last);
+	int localFirst = mapRowFromSource(parent, first);
+	int localLast = mapRowFromSource(parent, last);
+	int localDest = mapRowFromSource(dest, destRow);
+	if (expandedRow >= 0 && (localDest < localFirst || localDest > localLast + 1)) {
+		if (!parent.isValid() && first <= expandedRow && last >= expandedRow) {
+			// Case 1: the expanded row is in the moved range
+			// Since we don't support sub-trips, this means that we can't move into another trip
+			if (dest.isValid())
+				qWarning("MobileListModel::doneMove(): moving trips into a subtrip");
+			else if (destRow <= first)
+				expandedRow -=  first - destRow;
+			else if (destRow > last + 1)
+				expandedRow +=  destRow - (last + 1);
+		} else if (localFirst > expandedRow && localDest <= expandedRow) {
+			// Case 2: moving things from behind to before the expanded row
+			expandedRow += localLast - localFirst + 1;
+		} else if (localFirst < expandedRow && localDest > expandedRow)  {
+			// Case 3: moving things from before to behind the expanded row
+			expandedRow -= localLast - localFirst + 1;
+		}
+	}
+	endMoveRows();
+}
+
+void MobileListModel::expand(int row)
+{
+	// First, let us treat the trivial cases: expand an invalid row
+	// or the row is already expanded.
+	if (row < 0) {
+		unexpand();
+		return;
+	}
+	if (row == expandedRow)
+		return;
+
+	// Collapse the old expanded row, if any.
+	if (expandedRow >= 0) {
+		int numSub = numSubItems();
+		if (row > expandedRow) {
+			if (row <= expandedRow + numSub) {
+				qWarning("MobileListModel::expand(): trying to expand row in trip");
+				return;
+			}
+			row -= numSub;
+		}
+		unexpand();
+	}
+
+	DiveTripModelBase *source = DiveTripModelBase::instance();
+	int first = row + 1;
+	QModelIndex tripIdx = sourceIndex(row, 0);
+	int numRow = source->rowCount(tripIdx);
+	int last = first + numRow - 1;
+	if (last < first) {
+		// Amazingly, Qt's model API doesn't properly handle empty ranges!
+		expandedRow = row;
+		return;
+	}
+	beginInsertRows(QModelIndex(), first, last);
+	expandedRow = row;
+	endInsertRows();
+}
+
+void MobileListModel::changed(const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles)
+{
+	// If the expanded row is outside the region to be updated
+	// or the last entry in the region to be updated, we can simply
+	// forward the signal.
+	if (expandedRow < 0 || expandedRow < topLeft.row() || expandedRow >= bottomRight.row()) {
+		dataChanged(mapFromSource(topLeft), mapFromSource(bottomRight), roles);
+		return;
+	}
+
+	// We have to split this in two parts: before and including the expanded row
+	// and everything after the expanded row.
+	int numSub = numSubItems();
+	dataChanged(topLeft, createIndex(expandedRow, bottomRight.column()), roles);
+	dataChanged(createIndex(expandedRow + 1 + numSub, topLeft.column()), createIndex(bottomRight.row() + 1 + numSub, bottomRight.column()), roles);
+}
+
+void MobileListModel::unexpand()
+{
+	if (expandedRow < 0)
+		return;
+	int first = expandedRow + 1;
+	int numRows = numSubItems();
+	int last = first + numRows - 1;
+	if (last < first) {
+		// Amazingly, Qt's model API doesn't properly handle empty ranges!
+		expandedRow = -1;
+		return;
+	}
+	beginRemoveRows(QModelIndex(), first, last);
+	expandedRow = -1;
+	endRemoveRows();
+}
+
+void MobileListModel::toggle(int row)
+{
+	if (row < 0)
+		return;
+	else if (row == expandedRow)
+		unexpand();
+	else
+		expand(row);
+}
