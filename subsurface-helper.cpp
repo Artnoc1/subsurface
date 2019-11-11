@@ -18,6 +18,7 @@
 #include "mobile-widgets/qmlinterface.h"
 #include "qt-models/divelistmodel.h"
 #include "qt-models/divesummarymodel.h"
+#include "qt-models/mobilelistmodel.h"
 #include "qt-models/gpslistmodel.h"
 #include "qt-models/messagehandlermodel.h"
 #include "profile-widget/qmlprofile.h"
