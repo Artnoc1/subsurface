@@ -103,7 +103,8 @@ void run_ui()
 	gpsSortModel->sort(0, Qt::DescendingOrder);
 	QQmlContext *ctxt = engine.rootContext();
 	ctxt->setContextProperty("diveModel", DiveListSortModel::instance());
-	ctxt->setContextProperty("diveTripModel", CollapsedDiveListSortModel::instance());
+	MobileListModel *mlm(MobileListModel::instance());
+	ctxt->setContextProperty("mobileListModel", mlm);
 	ctxt->setContextProperty("gpsModel", gpsSortModel);
 	ctxt->setContextProperty("vendorList", vendorList);
 	set_non_bt_addresses();
@@ -167,6 +168,7 @@ void run_ui()
 	qml_window->setWidth(width);
 #endif // not Q_OS_ANDROID and not Q_OS_IOS
 	qml_window->show();
+	mlm->resetModel(DiveTripModelBase::TREE); // make sure we have the right model shown
 #else
 	MainWindow::instance()->show();
 #endif // SUBSURFACE_MOBILE
