@@ -51,11 +51,19 @@ public:
 	void unexpand();
 	void toggle(int row);
 private:
+	struct IndexRange {
+		QModelIndex parent;
+		int first, last;
+	};
 	void connectSignals();
 	QModelIndex sourceIndex(int row, int col, int parentRow = -1) const;
 	int numSubItems() const;
 	bool isExpandedRow(const QModelIndex &parent) const;
+	int mapRowFromSourceTopLevel(int row) const;
+	int mapRowFromSourceTrip(const QModelIndex &parent, int parentRow, int row) const;
 	int mapRowFromSource(const QModelIndex &parent, int row) const;
+	int invertRow(const QModelIndex &parent, int row) const;
+	IndexRange mapRangeFromSource(const QModelIndex &parent, int first, int last) const;
 	QModelIndex mapFromSource(const QModelIndex &idx) const;
 	QModelIndex mapToSource(const QModelIndex &idx) const;
 	QVariant data(const QModelIndex &index, int role) const override;
