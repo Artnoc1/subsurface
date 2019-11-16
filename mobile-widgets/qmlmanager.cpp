@@ -294,7 +294,6 @@ void QMLManager::applicationStateChanged(Qt::ApplicationState state)
 
 void QMLManager::openLocalThenRemote(QString url)
 {
-	CollapsedDiveListSortModel::instance()->setSourceModel(nullptr);
 	DiveListModel::instance()->clear();
 	setNotificationText(tr("Open local dive data file"));
 	QByteArray fileNamePrt = QFile::encodeName(url);
@@ -333,8 +332,6 @@ void QMLManager::openLocalThenRemote(QString url)
 		qPrefPartialPressureGas::set_po2(git_prefs.pp_graphs.po2);
 		process_loaded_dives();
 		DiveListModel::instance()->reload();
-		CollapsedDiveListSortModel::instance()->setSourceModel(DiveListModel::instance());
-		CollapsedDiveListSortModel::instance()->updateFilterState();
 		appendTextToLog(QStringLiteral("%1 dives loaded from cache").arg(dive_table.nr));
 		setNotificationText(tr("%1 dives loaded from local dive data file").arg(dive_table.nr));
 	}
@@ -1402,8 +1399,8 @@ void QMLManager::selectDive(int id)
 	}
 	if (amount_selected == 0)
 		qWarning("QManager::selectDive() called with unknown id");
-	else
-		CollapsedDiveListSortModel::instance()->updateSelectionState();
+	// else
+	// FIXME:	CollapsedDiveListSortModel::instance()->updateSelectionState();
 }
 
 void QMLManager::deleteDive(int id)
@@ -2077,7 +2074,6 @@ void QMLManager::setFilter(const QString filterText, int index)
 		case 2: mode = FilterData::Mode::TAGS; break;
 	}
 	DiveListSortModel::instance()->setFilter(filterText, mode);
-	CollapsedDiveListSortModel::instance()->updateFilterState();
 }
 
 void QMLManager::setShowNonDiveComputers(bool show)
