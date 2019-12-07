@@ -67,6 +67,8 @@ private:
 	IndexRange mapRangeFromSourceForInsert(const QModelIndex &parent, int first, int last) const;
 	QModelIndex mapFromSource(const QModelIndex &idx) const;
 	QModelIndex mapToSource(const QModelIndex &idx) const;
+	static void updateRowAfterRemove(const IndexRange &range, int &row);
+	static void updateRowAfterMove(const IndexRange &range, const IndexRange &dest, int &row);
 	QVariant data(const QModelIndex &index, int role) const override;
 	QModelIndex index(int row, int column, const QModelIndex &parent) const override;
 	QModelIndex parent(const QModelIndex &index) const override;
@@ -84,7 +86,6 @@ private slots:
 	void doneMove(const QModelIndex &parent, int first, int last, const QModelIndex &dest, int destRow);
 	void changed(const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles);
 };
-
 
 // Helper functions - these are actually defined in DiveObjectHelper.cpp. Why declare them here?
 QString formatSac(const dive *d);
