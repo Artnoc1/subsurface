@@ -335,6 +335,13 @@ Kirigami.Page {
 				ScrollBar.vertical: ScrollBar { }
 			}
 			ScrollIndicator.horizontal: ScrollIndicator { }
+			Connections {
+				target: diveModel
+				onCurrentDiveChanged: {
+					currentIndex = index.row
+					diveDetailsListView.positionViewAtIndex(currentIndex, ListView.End)
+				}
+			}
 		}
 	}
 	Flickable {
