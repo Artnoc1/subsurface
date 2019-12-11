@@ -44,9 +44,7 @@ public:
 		FirstGasRole,
 		SelectedRole,
 	};
-	MobileListModel();
-	static MobileListModel *instance();
-	void resetModel(DiveTripModelBase::Layout layout);	// Switch between tree and list view
+	MobileListModel(DiveTripModelBase *source);
 	void expand(int row);
 	void unexpand();
 	void toggle(int row);
@@ -55,7 +53,6 @@ private:
 		QModelIndex parent;
 		int first, last;
 	};
-	void connectSignals();
 	QModelIndex sourceIndex(int row, int col, int parentRow = -1) const;
 	int numSubItems() const;
 	bool isExpandedRow(const QModelIndex &parent) const;
@@ -76,6 +73,7 @@ private:
 	int columnCount(const QModelIndex &parent) const override;
 	QHash<int, QByteArray> roleNames() const override;
 
+	DiveTripModelBase *source;
 	int expandedRow;
 private slots:
 	void prepareRemove(const QModelIndex &parent, int first, int last);
@@ -85,6 +83,20 @@ private slots:
 	void prepareMove(const QModelIndex &parent, int first, int last, const QModelIndex &dest, int destRow);
 	void doneMove(const QModelIndex &parent, int first, int last, const QModelIndex &dest, int destRow);
 	void changed(const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles);
+};
+
+// This convenience class provides access to the two mobile models.
+// Moreover, it provides an interface to the source trip-model.
+class MobileModels {
+public:
+	static MobileModels *instance();
+	MobileListModel *listModel();
+	void clear(); // Clear all dive data
+	void reset(); // Reset model after having reloaded the core data
+private:
+	MobileModels();
+	DiveTripModelTree source;
+	MobileListModel lm;
 };
 
 // Helper functions - these are actually defined in DiveObjectHelper.cpp. Why declare them here?

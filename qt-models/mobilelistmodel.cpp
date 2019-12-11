@@ -1,21 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "mobilelistmodel.h"
 
-MobileListModel::MobileListModel() :
+MobileListModel::MobileListModel(DiveTripModelBase *sourceIn) :
+	source(sourceIn),
 	expandedRow(-1)
 {
-	connectSignals();
-}
-
-MobileListModel *MobileListModel::instance()
-{
-	static MobileListModel self;
-	return &self;
-}
-
-void MobileListModel::connectSignals()
-{
-	DiveTripModelBase *source = DiveTripModelBase::instance();
 	connect(source, &DiveTripModelBase::modelAboutToBeReset, this, &MobileListModel::beginResetModel);
 	connect(source, &DiveTripModelBase::modelReset, this, &MobileListModel::endResetModel);
 	connect(source, &DiveTripModelBase::rowsAboutToBeRemoved, this, &MobileListModel::prepareRemove);
@@ -78,7 +67,6 @@ QModelIndex MobileListModel::sourceIndex(int row, int col, int parentRow) const
 {
 	if (row < 0 || col < 0)
 		return QModelIndex();
-	DiveTripModelBase *source = DiveTripModelBase::instance();
 	QModelIndex parent;
 	if (parentRow >= 0) {
 		int numTop = source->rowCount(QModelIndex());
@@ -92,7 +80,6 @@ int MobileListModel::numSubItems() const
 {
 	if (expandedRow < 0)
 		return 0;
-	DiveTripModelBase *source = DiveTripModelBase::instance();
 	return source->rowCount(sourceIndex(expandedRow, 0));
 }
 
@@ -111,7 +98,6 @@ bool MobileListModel::isExpandedRow(const QModelIndex &parent) const
 
 int MobileListModel::invertRow(const QModelIndex &parent, int row) const
 {
-	DiveTripModelBase *source = DiveTripModelBase::instance();
 	int numItems = source->rowCount(parent);
 	return numItems - 1 - row;
 }
@@ -213,13 +199,11 @@ int MobileListModel::rowCount(const QModelIndex &parent) const
 {
 	if (parent.isValid())
 		return 0; // There is no parent
-	DiveTripModelBase *source = DiveTripModelBase::instance();
 	return source->rowCount() + numSubItems();
 }
 
 int MobileListModel::columnCount(const QModelIndex &parent) const
 {
-	DiveTripModelBase *source = DiveTripModelBase::instance();
 	return source->columnCount(parent);
 }
 
@@ -228,16 +212,7 @@ QVariant MobileListModel::data(const QModelIndex &index, int role) const
 	if (role == IsTopLevelRole)
 		return index.row() <= expandedRow || index.row() > expandedRow + numSubItems();
 
-	DiveTripModelBase *source = DiveTripModelBase::instance();
 	return source->data(mapToSource(index), role);
-}
-
-void MobileListModel::resetModel(DiveTripModelBase::Layout layout)
-{
-	beginResetModel();
-	DiveTripModelBase::instance()->reset();
-	connectSignals();
-	endResetModel();
 }
 
 void MobileListModel::prepareRemove(const QModelIndex &parent, int first, int last)
@@ -377,7 +352,6 @@ void MobileListModel::expand(int row)
 		unexpand();
 	}
 
-	DiveTripModelBase *source = DiveTripModelBase::instance();
 	int first = row + 1;
 	QModelIndex tripIdx = sourceIndex(row, 0);
 	int numRow = source->rowCount(tripIdx);
@@ -475,4 +449,29 @@ void MobileListModel::toggle(int row)
 		unexpand();
 	else
 		expand(row);
+}
+MobileModels *MobileModels::instance()
+{
+	static MobileModels self;
+	return &self;
+}
+
+MobileModels::MobileModels() :
+	lm(&source)
+{
+}
+
+MobileListModel *MobileModels::listModel()
+{
+	return &lm;
+}
+
+void MobileModels::clear()
+{
+	source.clear();
+}
+
+void MobileModels::reset()
+{
+	source.reset();
 }
