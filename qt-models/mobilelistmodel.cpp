@@ -1,22 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "mobilelistmodel.h"
 
-MobileListModel::MobileListModel(DiveTripModelBase *sourceIn) :
-	source(sourceIn),
-	expandedRow(-1)
+MobileListModelBase::MobileListModelBase(DiveTripModelBase *sourceIn) : source(sourceIn)
 {
-	connect(source, &DiveTripModelBase::modelAboutToBeReset, this, &MobileListModel::beginResetModel);
-	connect(source, &DiveTripModelBase::modelReset, this, &MobileListModel::endResetModel);
-	connect(source, &DiveTripModelBase::rowsAboutToBeRemoved, this, &MobileListModel::prepareRemove);
-	connect(source, &DiveTripModelBase::rowsRemoved, this, &MobileListModel::doneRemove);
-	connect(source, &DiveTripModelBase::rowsAboutToBeInserted, this, &MobileListModel::prepareInsert);
-	connect(source, &DiveTripModelBase::rowsInserted, this, &MobileListModel::doneInsert);
-	connect(source, &DiveTripModelBase::rowsAboutToBeMoved, this, &MobileListModel::prepareMove);
-	connect(source, &DiveTripModelBase::rowsMoved, this, &MobileListModel::doneMove);
-	connect(source, &DiveTripModelBase::dataChanged, this, &MobileListModel::changed);
 }
 
-QHash<int, QByteArray> MobileListModel::roleNames() const
+QHash<int, QByteArray> MobileListModelBase::roleNames() const
 {
 	QHash<int, QByteArray> roles;
 	roles[DiveTripModelBase::IS_TRIP_ROLE] = "isTrip";
@@ -57,6 +46,39 @@ QHash<int, QByteArray> MobileListModel::roleNames() const
 	roles[FirstGasRole] = "firstGas";
 	roles[SelectedRole] = "selected";
 	return roles;
+}
+
+int MobileListModelBase::columnCount(const QModelIndex &parent) const
+{
+	return source->columnCount(parent);
+}
+
+QModelIndex MobileListModelBase::index(int row, int column, const QModelIndex &parent) const
+{
+	if (!hasIndex(row, column, parent))
+		return QModelIndex();
+
+	return createIndex(row, column);
+}
+
+QModelIndex MobileListModelBase::parent(const QModelIndex &index) const
+{
+	// These are flat models - there is no parent
+	return QModelIndex();
+}
+
+MobileListModel::MobileListModel(DiveTripModelBase *source) : MobileListModelBase(source),
+	expandedRow(-1)
+{
+	connect(source, &DiveTripModelBase::modelAboutToBeReset, this, &MobileListModel::beginResetModel);
+	connect(source, &DiveTripModelBase::modelReset, this, &MobileListModel::endResetModel);
+	connect(source, &DiveTripModelBase::rowsAboutToBeRemoved, this, &MobileListModel::prepareRemove);
+	connect(source, &DiveTripModelBase::rowsRemoved, this, &MobileListModel::doneRemove);
+	connect(source, &DiveTripModelBase::rowsAboutToBeInserted, this, &MobileListModel::prepareInsert);
+	connect(source, &DiveTripModelBase::rowsInserted, this, &MobileListModel::doneInsert);
+	connect(source, &DiveTripModelBase::rowsAboutToBeMoved, this, &MobileListModel::prepareMove);
+	connect(source, &DiveTripModelBase::rowsMoved, this, &MobileListModel::doneMove);
+	connect(source, &DiveTripModelBase::dataChanged, this, &MobileListModel::changed);
 }
 
 // We want to show the newest dives first. Therefore, we have to invert
@@ -181,30 +203,11 @@ QModelIndex MobileListModel::mapToSource(const QModelIndex &idx) const
 	return sourceIndex(row - expandedRow - 1, col, expandedRow);
 }
 
-QModelIndex MobileListModel::index(int row, int column, const QModelIndex &parent) const
-{
-	if (!hasIndex(row, column, parent))
-		return QModelIndex();
-
-	return createIndex(row, column);
-}
-
-QModelIndex MobileListModel::parent(const QModelIndex &index) const
-{
-	// This is a flat model - there is no parent
-	return QModelIndex();
-}
-
 int MobileListModel::rowCount(const QModelIndex &parent) const
 {
 	if (parent.isValid())
 		return 0; // There is no parent
 	return source->rowCount() + numSubItems();
-}
-
-int MobileListModel::columnCount(const QModelIndex &parent) const
-{
-	return source->columnCount(parent);
 }
 
 QVariant MobileListModel::data(const QModelIndex &index, int role) const
@@ -221,7 +224,6 @@ void MobileListModel::prepareRemove(const QModelIndex &parent, int first, int la
 	if (isExpandedRow(range.parent))
 		beginRemoveRows(QModelIndex(), range.first, range.last);
 }
-
 
 void MobileListModel::updateRowAfterRemove(const IndexRange &range, int &row)
 {
@@ -459,6 +461,7 @@ MobileModels *MobileModels::instance()
 MobileModels::MobileModels() :
 	lm(&source)
 {
+	reset();
 }
 
 MobileListModel *MobileModels::listModel()
