@@ -28,6 +28,7 @@ Kirigami.Page {
 	property alias locationModel: detailsEdit.locationModel
 	property alias locationIndex: detailsEdit.locationIndex
 	property alias gps: detailsEdit.gpsText
+	property alias location: detailsEdit.locationText
 	property alias notes: detailsEdit.notesText
 	property alias suitIndex: detailsEdit.suitIndex
 	property alias suitText: detailsEdit.suitText
@@ -228,9 +229,6 @@ Kirigami.Page {
 	}
 
 	function endEditMode() {
-		// if we were adding a dive, we need to remove it
-		if (state === "add")
-			manager.addDiveAborted(dive_id)
 		// just cancel the edit/add state
 		state = "view";
 		focus = false;
