@@ -218,9 +218,19 @@ QVariant MobileListModel::data(const QModelIndex &index, int role) const
 	return source->data(mapToSource(index), role);
 }
 
+// Trivial helper to return and erase the last element of a stack
+template<typename T>
+static T pop(std::vector<T> &v)
+{
+	T res = v.back();
+	v.pop_back();
+	return res;
+}
+
 void MobileListModel::prepareRemove(const QModelIndex &parent, int first, int last)
 {
 	IndexRange range = mapRangeFromSource(parent, first, last);
+	rangeStack.push_back(range);
 	if (isExpandedRow(range.parent))
 		beginRemoveRows(QModelIndex(), range.first, range.last);
 }
@@ -237,7 +247,7 @@ void MobileListModel::updateRowAfterRemove(const IndexRange &range, int &row)
 
 void MobileListModel::doneRemove(const QModelIndex &parent, int first, int last)
 {
-	IndexRange range = mapRangeFromSource(parent, first, last);
+	IndexRange range = pop(rangeStack);
 	if (isExpandedRow(range.parent)) {
 		// Check if we have to move or remove the expanded or current item
 		updateRowAfterRemove(range, expandedRow);
@@ -249,13 +259,14 @@ void MobileListModel::doneRemove(const QModelIndex &parent, int first, int last)
 void MobileListModel::prepareInsert(const QModelIndex &parent, int first, int last)
 {
 	IndexRange range = mapRangeFromSourceForInsert(parent, first, last);
+	rangeStack.push_back(range);
 	if (isExpandedRow(range.parent))
 		beginInsertRows(QModelIndex(), range.first, range.last);
 }
 
 void MobileListModel::doneInsert(const QModelIndex &parent, int first, int last)
 {
-	IndexRange range = mapRangeFromSourceForInsert(parent, first, last);
+	IndexRange range = pop(rangeStack);
 	if (isExpandedRow(range.parent)) {
 		// Check if we have to move the expanded item
 		if (!parent.isValid() && expandedRow >= 0 && range.first <= expandedRow)
@@ -270,6 +281,8 @@ void MobileListModel::prepareMove(const QModelIndex &parent, int first, int last
 {
 	IndexRange range = mapRangeFromSource(parent, first, last);
 	IndexRange rangeDest = mapRangeFromSourceForInsert(dest, destRow, destRow);
+	rangeStack.push_back(range);
+	rangeStack.push_back(rangeDest);
 	if (!isExpandedRow(range.parent) && !isExpandedRow(rangeDest.parent))
 		return;
 	if (isExpandedRow(range.parent) && !isExpandedRow(rangeDest.parent))
@@ -300,8 +313,8 @@ void MobileListModel::updateRowAfterMove(const IndexRange &range, const IndexRan
 
 void MobileListModel::doneMove(const QModelIndex &parent, int first, int last, const QModelIndex &dest, int destRow)
 {
-	IndexRange range = mapRangeFromSource(parent, first, last);
-	IndexRange rangeDest = mapRangeFromSourceForInsert(dest, destRow, destRow);
+	IndexRange rangeDest = pop(rangeStack);
+	IndexRange range = pop(rangeStack);
 	if (!isExpandedRow(range.parent) && !isExpandedRow(rangeDest.parent))
 		return;
 	if (isExpandedRow(range.parent) && !isExpandedRow(rangeDest.parent))
