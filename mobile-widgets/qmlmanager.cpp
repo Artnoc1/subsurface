@@ -16,6 +16,7 @@
 #include <QFile>
 #include <QtConcurrent>
 #include <QFuture>
+#include <QUndoStack>
 
 #include <QBluetoothLocalDevice>
 
@@ -49,6 +50,7 @@
 #include "core/worldmap-save.h"
 #include "core/uploadDiveLogsDE.h"
 #include "core/uploadDiveShare.h"
+#include "commands/command_base.h"
 #include "commands/command.h"
 
 QMLManager *QMLManager::m_instance = NULL;
@@ -262,6 +264,10 @@ QMLManager::QMLManager() : m_locationServiceEnabled(false),
 	what.tags = true;
 	what.cylinders = true;
 	what.weights = true;
+
+	// get updates to the undo/redo texts
+	connect(Command::getUndoStack(), &QUndoStack::undoTextChanged, this, &QMLManager::undoTextChanged);
+	connect(Command::getUndoStack(), &QUndoStack::redoTextChanged, this, &QMLManager::redoTextChanged);
 }
 
 void QMLManager::applicationStateChanged(Qt::ApplicationState state)
@@ -1386,7 +1392,13 @@ void QMLManager::saveChangesCloud(bool forceRemoteSync)
 
 void QMLManager::undoDelete(int)
 {
-	undoAction->activate(QAction::Trigger);
+	Command::getUndoStack()->undo();
+	changesNeedSaving();
+}
+
+void QMLManager::redo()
+{
+	Command::getUndoStack()->redo();
 	changesNeedSaving();
 }
 
@@ -2138,4 +2150,16 @@ void QMLManager::setOldStatus(const qPrefCloudStorage::cloud_status value)
 		m_oldStatus = value;
 		emit oldStatusChanged();
 	}
+}
+
+QString QMLManager::getUndoText() const
+{
+	QString undoText = Command::getUndoStack()->undoText();
+	return undoText;
+}
+
+QString QMLManager::getRedoText() const
+{
+	QString redoText = Command::getUndoStack()->redoText();
+	return redoText;
 }
