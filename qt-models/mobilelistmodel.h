@@ -114,6 +114,10 @@ public:
 signals:
 	void shownChanged();
 private:
+	struct IndexRange {
+		int first, last;
+	};
+	std::vector<IndexRange> rangeStack;
 	std::vector<int> firstElement; // First element of top level item.
 	int rows;
 	QVariant data(const QModelIndex &index, int role) const override;
@@ -126,12 +130,15 @@ private:
 	mutable int cacheSourceRow = -1;
 
 	// Translate indexes from/to source
+	int topLevelRowCountInSource(int sourceRow) const;
 	QModelIndex mapToSource(const QModelIndex &index) const;
 	int mapTopLevelFromSource(int row) const;
 	int mapTopLevelFromSourceForInsert(int row) const;
 	int elementCountInTopLevel(int row) const;
 	int mapRowFromSource(const QModelIndex &parent, int row) const;
 	int mapRowFromSource(const QModelIndex &parent) const;
+	int mapRowFromSourceForInsert(const QModelIndex &parent, int row) const;
+	IndexRange mapRangeFromSource(const QModelIndex &parent, int first, int last) const;
 	void invalidateSourceRowCache() const;
 	void updateSourceRowCache(int row) const;
 	int shown() const;
