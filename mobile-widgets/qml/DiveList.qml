@@ -9,8 +9,8 @@ import org.subsurfacedivelog.mobile 1.0
 
 Kirigami.ScrollablePage {
 	id: page
-	objectName: "NewDiveList"
-	title: qsTr("New Dive list") // this of course needs to be changed
+	objectName: "DiveList"
+	title: qsTr("Dive list")
 	verticalScrollBarPolicy: Qt.ScrollBarAlwaysOff
 	property int horizontalPadding: Kirigami.Units.gridUnit / 2 - Kirigami.Units.smallSpacing  + 1
 	property QtObject diveListModel: diveModel
@@ -372,7 +372,7 @@ Kirigami.ScrollablePage {
 		bottomMargin: Kirigami.Units.iconSizes.medium + Kirigami.Units.gridUnit
 		cacheBuffer: 40 // this will increase memory use, but should help with scrolling
 		Component.onCompleted: {
-			manager.appendTextToLog("finished setting up the new diveListView")
+			manager.appendTextToLog("finished setting up the diveListView")
 		}
 	}
 
