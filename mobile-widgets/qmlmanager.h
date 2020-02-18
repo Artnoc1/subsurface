@@ -21,6 +21,7 @@
 
 class QAction;
 class DiveObjectHelper;
+class DiveSiteChange; // An obscure implementation artifact - remove in due course.
 
 class QMLManager : public QObject {
 	Q_OBJECT
@@ -246,7 +247,7 @@ private:
 	QElapsedTimer timer;
 	bool alreadySaving;
 	bool checkDate(const DiveObjectHelper &myDive, struct dive *d, QString date);
-	bool checkLocation(const DiveObjectHelper &myDive, struct dive *d, QString location, QString gps);
+	bool checkLocation(DiveSiteChange &change, const DiveObjectHelper &myDive, struct dive *d, QString location, QString gps);
 	bool checkDuration(const DiveObjectHelper &myDive, struct dive *d, QString duration);
 	bool checkDepth(const DiveObjectHelper &myDive, struct dive *d, QString depth);
 	bool currentGitLocalOnly;
@@ -255,6 +256,7 @@ private:
 	bool m_btEnabled;
 	void updateAllGlobalLists();
 	void updateSiteList();
+
 	location_t getGps(QString &gps);
 	QString m_pluggedInDeviceName;
 	bool m_showNonDiveComputers;
