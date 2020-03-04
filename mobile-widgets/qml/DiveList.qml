@@ -14,7 +14,6 @@ Kirigami.ScrollablePage {
 	verticalScrollBarPolicy: Qt.ScrollBarAlwaysOff
 	property int horizontalPadding: Kirigami.Units.gridUnit / 2 - Kirigami.Units.smallSpacing  + 1
 	property QtObject diveListModel: diveModel
-	property string numShownText
 
 	supportsRefreshing: true
 	onRefreshingChanged: {
@@ -388,17 +387,32 @@ Kirigami.ScrollablePage {
 				]
 				anchors.left: parent.left
 				anchors.right: parent.right
-				anchors.leftMargin: Kirigami.Units.smallSpacing
-				anchors.rightMargin: Kirigami.Units.smallSpacing
+				anchors.leftMargin: Kirigami.Units.gridUnit / 2
+				anchors.rightMargin: Kirigami.Units.gridUnit / 2
+				TemplateComboBox {
+					id: sitefilterMode
+					editable: false
+					model: ListModel {
+						ListElement {text: qsTr("Fulltext")}
+						ListElement {text: qsTr("People")}
+						ListElement {text: qsTr("Tags")}
+					}
+					font.pointSize: subsurfaceTheme.smallPointSize
+					Layout.preferredWidth: parent.width * 0.2
+					Layout.maximumWidth: parent.width * 0.3
+					onActivated:  {
+						manager.setFilter(sitefilter.text, currentIndex)
+					}
+				}
 				Controls.TextField  {
 					id: sitefilter
 					z: 10
 					verticalAlignment: TextInput.AlignVCenter
 					Layout.fillWidth: true
 					text: ""
-					placeholderText: "Full text search"
+					placeholderText: sitefilterMode.currentText
 					onAccepted: {
-						manager.setFilter(text)
+						manager.setFilter(text, sitefilterMode.currentIndex)
 					}
 					onEnabledChanged: {
 						// reset the filter when it gets toggled
@@ -412,7 +426,7 @@ Kirigami.ScrollablePage {
 					id: numShown
 					z: 10
 					verticalAlignment: Text.AlignVCenter
-					text: numShownText
+					text: diveModel.shown
 				}
 			}
 		}
@@ -432,9 +446,6 @@ Kirigami.ScrollablePage {
 		maximumFlickVelocity: parent.height * 5
 		bottomMargin: Kirigami.Units.iconSizes.medium + Kirigami.Units.gridUnit
 		cacheBuffer: 40 // this will increase memory use, but should help with scrolling
-		onModelChanged: {
-			numShownText = diveModel.shown()
-		}
 		Component.onCompleted: {
 			manager.appendTextToLog("finished setting up the diveListView")
 		}
@@ -482,8 +493,7 @@ Kirigami.ScrollablePage {
 		text: qsTr("Filter dives")
 		onTriggered: {
 			rootItem.filterToggle = !rootItem.filterToggle
-			manager.setFilter("")
-			numShownText = diveModel.shown()
+			manager.setFilter("", 0)
 		}
 	}
 
