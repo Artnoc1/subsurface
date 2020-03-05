@@ -22,6 +22,7 @@
 #include "tag.h"
 #include "trip.h"
 #include "imagedownloader.h"
+#include "commands/command.h"
 #include <QFile>
 #include <QRegExp>
 #include <QDir>
@@ -46,7 +47,7 @@ static QLocale loc;
 
 static inline QString degreeSigns()
 {
-    return QStringLiteral("dD\u00b0");
+	return QStringLiteral("dD\u00b0");
 }
 
 QString weight_string(int weight_in_grams)
@@ -1643,4 +1644,9 @@ extern "C" void unlock_planner()
 char *copy_qstring(const QString &s)
 {
 	return strdup(qPrintable(s));
+}
+
+extern "C" char *get_changes_made()
+{
+	return copy_qstring(Command::changesMade());
 }
