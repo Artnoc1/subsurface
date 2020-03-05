@@ -57,6 +57,7 @@ function(TEST NAME FILE)
 		subsurface_backend_shared
 		${TEST_SPECIFIC_LIBRARIES}
 		subsurface_corelib
+		subsurface_commands
 		RESOURCE_LIBRARY
 		${QT_TEST_LIBRARIES}
 		${SUBSURFACE_LINK_LIBRARIES}
@@ -93,6 +94,7 @@ add_executable(TestQML testqml.cpp ../subsurface-helper.cpp )
 target_link_libraries(
 	TestQML
 	subsurface_corelib
+	subsurface_commands
 	RESOURCE_LIBRARY
 	${QT_TEST_LIBRARIES}
 	${SUBSURFACE_LINK_LIBRARIES}
