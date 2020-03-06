@@ -122,6 +122,14 @@ int MobileListModel::mapRowFromSourceTopLevel(int row) const
 	return expandedRow >= 0 && row > expandedRow ? row + numSubItems() : row;
 }
 
+int MobileListModel::mapRowFromSourceTopLevelForInsert(int row) const
+{
+	// This is a top-level item. If it is after the expanded row,
+	// we have to add the items of the expanded row.
+	row = invertRow(QModelIndex(), row) + 1;
+	return expandedRow >= 0 && row > expandedRow ? row + numSubItems() : row;
+}
+
 // The parentRow parameter is the row of the expanded trip converted into
 // local "coordinates" as a premature optimization.
 int MobileListModel::mapRowFromSourceTrip(const QModelIndex &parent, int parentRow, int row) const
@@ -177,8 +185,8 @@ MobileListModel::IndexRange MobileListModel::mapRangeFromSourceForInsert(const Q
 {
 	int num = last - first;
 	if (!parent.isValid()) {
-		first = mapRowFromSourceTopLevel(first);
-		return { true, first + 1, first + 1 + num };
+		first = mapRowFromSourceTopLevelForInsert(first);
+		return { true, first, first + num };
 	} else {
 		int parentRow = invertRow(QModelIndex(), parent.row());
 		if (parentRow == expandedRow) {
@@ -238,6 +246,24 @@ static T pop(std::vector<T> &v)
 void MobileListModel::prepareRemove(const QModelIndex &parent, int first, int last)
 {
 	IndexRange range = mapRangeFromSource(parent, first, last);
+
+	// Check whether we remove a dive from an expanded trip
+	if (range.visible && parent.isValid()) {
+		for (int i = first; i <= last; ++i) {
+			QModelIndex index = source->index(i, 0, parent);
+			if (source->data(index, DiveTripModelBase::CURRENT_ROLE).value<bool>()) {
+				// Hack alert: we remove the currently selected dive from a visible trip.
+				// Therefore, simply collapse the expanded trip. This is done in prepareRemove(),
+				// i.e. before the base model has actually done any removal and thus things should
+				// be consistent. Then, we can simply pretend that the range was invisible all along,
+				// i.e. the removal is a no-op.
+				unexpand();
+				range.visible = false;
+				break;
+			}
+		}
+	}
+
 	rangeStack.push_back(range);
 	if (range.visible)
 		beginRemoveRows(QModelIndex(), range.first, range.last);
@@ -280,6 +306,30 @@ void MobileListModel::doneInsert(const QModelIndex &parent, int first, int last)
 		if (!parent.isValid() && expandedRow >= 0 && range.first <= expandedRow)
 			expandedRow += last - first + 1;
 		endInsertRows();
+	} else {
+		// The range was not visible, thus we inserted into a non-expanded trip.
+		// However, we might have inserted the current item. This means that we
+		// have to expand that trip.
+		// If we inserted a dive that is the current item
+		QModelIndex index = source->index(parent.row(), 0, QModelIndex());
+		if (source->data(index, DiveTripModelBase::TRIP_HAS_CURRENT_ROLE).value<bool>()) {
+			int row = mapRowFromSourceTopLevel(parent.row());
+			expand(row);
+		}
+	}
+
+	if (!parent.isValid()) {
+		// If we inserted a trip that contains the current item, expand that trip
+		for (int i = first; i <= last; ++i) {
+			// Accessing data via the model/view API is annoying.
+			// Perhaps we should simply add a tripHasCurrent(int row) function?
+			QModelIndex index = source->index(i, 0, QModelIndex());
+			if (source->data(index, DiveTripModelBase::TRIP_HAS_CURRENT_ROLE).value<bool>()) {
+				int row = mapRowFromSourceTopLevel(i);
+				expand(row);
+				break;
+			}
+		}
 	}
 }
 
